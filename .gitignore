@@ -27,3 +27,12 @@
 *.exe
 *.out
 *.app
+
+
+# Output folder
+bin/*
+
+*project
+*settings
+*swp
+*save

@@ -102,6 +102,10 @@ int main(int argc, char *argv[]) {
 
 	int server_socket;
 
+	if(argc != 2){
+		printf("Usage: %s <name_of_client>\n", argv[0]);
+		return 0;
+	}
 	pthread_t tid[NUM_CLIENT_THREADS];
 
 
@@ -122,6 +126,14 @@ int main(int argc, char *argv[]) {
 		ERROR("Error making connection at server end\n");
 		return 1;
 	}
+
+	int send_status = send(server_socket, argv[1], strlen(argv[1]), 0);
+		if (send_status == -1) {
+			ERROR("Sending first packet!\n");
+			return 1;
+		}
+
+
 	pthread_create(&tid[0], NULL, user_interface, NULL);
 	//pthread_create(&tid[1], NULL, comm_interface, &server_socket);
 

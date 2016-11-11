@@ -1,23 +1,22 @@
 #include "utilities.h"
 #include "server.h"
 
-#define MAX_CLIENTS	(10)
+#define MAX_CLIENTS	 (10)
+#define MAX_NAME_LEN (15)
 
 static clientSocketMap_t *map;
 
-
 static int recv_packet(int client_socket, pkt_t *packet);
 
-
 static int recv_packet(int client_socket, pkt_t *packet) {
-
 
 	int recv_status = recv(client_socket, packet, sizeof(pkt_t), 0);
 	if (recv_status == -1) {
 		ERROR("Receiving first packet!\n");
 		return 1;
 	}
-
+	if(packet == NULL)
+		return 1;
 	int len = packet->len + 1;
 	char *msg = (char *) malloc(len);
 	packet->data = (char *) malloc(len);
@@ -56,18 +55,26 @@ int main(int argc, char *argv[]) {
 	// listening for connections
 	listen(server_socket, MAX_CLIENTS);
 	static pkt_t packet;
+	char name[MAX_NAME_LEN];
 	client_socket = accept(server_socket, NULL, NULL);
+	int recv_status = recv(client_socket, name, MAX_NAME_LEN, 0);
+	if (recv_status == -1) {
+		ERROR("Receiving main packet!\n");
+		return 1;
+	}
 	map = (clientSocketMap_t *) malloc(sizeof(clientSocketMap_t));
+	memcpy(map->name, name, strlen(name) + 1);
+	map->socket_id = client_socket;
+	map++;
 	while (1) {
-
-
 
 		int recv_status = recv_packet(client_socket, &packet);
 		if (recv_status == -1) {
 			ERROR("Receiving packet!\n");
 			return 1;
 		}
-
+		if(&packet == NULL)
+			break;
 	}
 	return 0;
 }
