@@ -67,7 +67,8 @@ void *user_interface(void *args) {
 		scanf("%s %s %s", cast_type, pkt_type, text_link);
 		if (cast_type == NULL || pkt_type == NULL || text_link == NULL) {
 			ERROR("Entered parameters incorrect\n");
-			printf("Usage: unicast/broadcast/blockcast message/file message-content/file-path");
+			printf(
+					"Usage: unicast/broadcast/blockcast message/file message-content/file-path");
 			continue;
 		}
 		//pthread_mutex_lock();
@@ -102,13 +103,11 @@ int main(int argc, char *argv[]) {
 
 	int server_socket;
 
-	if(argc != 2){
+	if (argc != 2) {
 		printf("Usage: %s <name_of_client>\n", argv[0]);
 		return 0;
 	}
 	pthread_t tid[NUM_CLIENT_THREADS];
-
-
 
 	server_socket = socket(AF_INET, SOCK_STREAM, 0);
 	if (server_socket == -1) {
@@ -128,11 +127,10 @@ int main(int argc, char *argv[]) {
 	}
 
 	int send_status = send(server_socket, argv[1], strlen(argv[1]), 0);
-		if (send_status == -1) {
-			ERROR("Sending first packet!\n");
-			return 1;
-		}
-
+	if (send_status == -1) {
+		ERROR("Sending first packet!\n");
+		return 1;
+	}
 
 	pthread_create(&tid[0], NULL, user_interface, NULL);
 	//pthread_create(&tid[1], NULL, comm_interface, &server_socket);

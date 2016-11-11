@@ -15,7 +15,7 @@ static int recv_packet(int client_socket, pkt_t *packet) {
 		ERROR("Receiving first packet!\n");
 		return 1;
 	}
-	if(packet == NULL)
+	if (packet == NULL)
 		return 1;
 	int len = packet->len + 1;
 	char *msg = (char *) malloc(len);
@@ -73,8 +73,6 @@ int main(int argc, char *argv[]) {
 			ERROR("Receiving packet!\n");
 			return 1;
 		}
-		if(&packet == NULL)
-			break;
 	}
 	return 0;
 }
