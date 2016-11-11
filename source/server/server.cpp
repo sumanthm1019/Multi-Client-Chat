@@ -2,7 +2,7 @@
 #include "server.h"
 
 #define MAX_CLIENTS	 (10)
-#define MAX_NAME_LEN (15)
+
 
 static clientSocketMap_t *map;
 
@@ -12,7 +12,11 @@ static int recv_packet(int client_socket, pkt_t *packet) {
 
 	int recv_status = recv(client_socket, packet, sizeof(pkt_t), 0);
 	if (recv_status == -1) {
-		ERROR("Receiving first packet!\n");
+		ERROR("Receiving first packet!");
+		return 1;
+	}
+	if (recv_status == 0){
+		ERROR("Client Disconnected");
 		return 1;
 	}
 	if (packet == NULL)
@@ -23,7 +27,7 @@ static int recv_packet(int client_socket, pkt_t *packet) {
 
 	recv_status = recv(client_socket, msg, len, 0);
 	if (recv_status == -1) {
-		ERROR("Receiving main packet!\n");
+		ERROR("Receiving main packet!");
 		return 1;
 	}
 
@@ -59,7 +63,7 @@ int main(int argc, char *argv[]) {
 	client_socket = accept(server_socket, NULL, NULL);
 	int recv_status = recv(client_socket, name, MAX_NAME_LEN, 0);
 	if (recv_status == -1) {
-		ERROR("Receiving main packet!\n");
+		ERROR("Receiving main packet!");
 		return 1;
 	}
 	map = (clientSocketMap_t *) malloc(sizeof(clientSocketMap_t));
@@ -69,8 +73,8 @@ int main(int argc, char *argv[]) {
 	while (1) {
 
 		int recv_status = recv_packet(client_socket, &packet);
-		if (recv_status == -1) {
-			ERROR("Receiving packet!\n");
+		if (recv_status != 0) {
+			ERROR("Receiving packet!");
 			return 1;
 		}
 	}
