@@ -13,7 +13,6 @@
 #include <unistd.h>
 #include <pthread.h>
 
-
 #define FRED        "\033[31m"
 #define FGREEN      "\033[32m"
 #define NONE        "\033[0m"
@@ -30,12 +29,12 @@
 #define FILE	  1
 
 #define SERVER_PORT 	(9000)
+#define MAX_NAME_LEN 	(15)
 
-
-typedef struct
-{
-	int   pkt_type;
-	int   cast_type;
-	int   len;
+typedef struct {
+	int pkt_type;
+	int cast_type;
+	int len;
 	char *data;
+	char peer_name[MAX_NAME_LEN];
 } pkt_t;

@@ -4,28 +4,30 @@
 #define NUM_CLIENT_THREADS 3
 
 static pkt_t client_packet;
+static pkt_t server_packet;
 
 static int build_packet(char *cast_type, char *pkt_type, char *data);
-static int send_packet(int server_socket, pkt_t *packet);
+static int send_packet(int server_socket);
+static int recv_packet(int server_socket);
 
-static int send_packet(int server_socket, pkt_t *packet) {
+static int send_packet(int server_socket) {
+
 	pkt_t *first_packet = (pkt_t *) malloc(sizeof(pkt_t));
 
-	first_packet->cast_type = packet->cast_type;
-	first_packet->len = packet->len;
-	first_packet->pkt_type = packet->pkt_type;
+	first_packet->cast_type = client_packet.cast_type;
+	first_packet->len = client_packet.len;
+	first_packet->pkt_type = client_packet.pkt_type;
 	first_packet->data = NULL;
 
 	int send_status = send(server_socket, first_packet, sizeof(pkt_t), 0);
 	if (send_status == -1) {
-		ERROR("Sending first packet!\n");
+		ERROR("Sending first packet!");
 		return 1;
 	}
 
-	printf("data sending %s %d \n", packet->data, packet->len);
-	send_status = send(server_socket, packet->data, packet->len + 1, 0);
+	send_status = send(server_socket, client_packet.data, client_packet.len + 1, 0);
 	if (send_status == -1) {
-		ERROR("Sending main packet!\n");
+		ERROR("Sending main packet!");
 		return 1;
 	}
 
@@ -35,7 +37,7 @@ static int send_packet(int server_socket, pkt_t *packet) {
 static int build_packet(char *cast_type, char *pkt_type, char *data) {
 
 	if (cast_type == NULL || pkt_type == NULL || data == NULL) {
-		ERROR("Enter correct arguments!\n");
+		printf("Enter correct arguments!\n Usage <cast type> <packet type> <packet data> \n");
 		return 1;
 	}
 
@@ -57,6 +59,27 @@ static int build_packet(char *cast_type, char *pkt_type, char *data) {
 
 	return 0;
 }
+
+
+static int recv_packet(int server_socket) {
+
+
+	int recv_status = recv(server_socket, &server_packet, sizeof(pkt_t), 0);
+	if (recv_status == -1) {
+		ERROR("Receiving first packet!");
+		return 1;
+	}
+
+	if(server_packet.pkt_type == MESSAGE){
+		printf("\n%s: %s\n", server_packet.peer_name, server_packet.data);
+	} else {
+		// FILE
+		// TODO
+		// ..
+	}
+	return 0;
+}
+
 
 void *user_interface(void *args) {
 	char pkt_type[10];
@@ -83,14 +106,30 @@ void *user_interface(void *args) {
 	return NULL;
 }
 
-void *comm_interface(void *args) {
+void *tx_interface(void *args) {
 	int server_socket = *(int *) args;
 	while (1) {
 		//pthread_mutex_lock();
 		//pthread_cond_wait();
-		int send_status = send_packet(server_socket, &client_packet);
+		int send_status = send_packet(server_socket);
 		if (send_status != 0) {
-			ERROR("Sending message to server!\n");
+			ERROR("Sending message to server!");
+		}
+		//pthread_mutex_unlock();
+
+	}
+
+	return NULL;
+}
+
+void *rx_interface(void *args) {
+	int server_socket = *(int *) args;
+	while (1) {
+		//pthread_mutex_lock();
+		//pthread_cond_wait();
+		int recv_status = recv_packet(server_socket);
+		if (recv_status != 0) {
+			ERROR("Receiving message from server!");
 		}
 		//pthread_mutex_unlock();
 
@@ -122,7 +161,7 @@ int main(int argc, char *argv[]) {
 	int connection_status = connect(server_socket,
 			(struct sockaddr *) &server_address, sizeof(server_address));
 	if (connection_status == -1) {
-		ERROR("Error making connection at server end\n");
+		ERROR("Error making connection at server end");
 		return 1;
 	}
 
@@ -133,10 +172,12 @@ int main(int argc, char *argv[]) {
 	}
 
 	pthread_create(&tid[0], NULL, user_interface, NULL);
-	//pthread_create(&tid[1], NULL, comm_interface, &server_socket);
+	//pthread_create(&tid[1], NULL, tx_interface, &server_socket);
+	pthread_create(&tid[2], NULL, rx_interface, &server_socket);
 
 	pthread_join(tid[0], NULL);
 	//pthread_join(tid[1], NULL);
+	pthread_join(tid[2], NULL);
 	close(server_socket);
 	return 0;
 }
