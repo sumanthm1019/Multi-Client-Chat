@@ -4,10 +4,10 @@
 #define NUM_CLIENT_THREADS 3
 
 /** Local variables
-*/
-pthread_mutex_t mutex 		    	   = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t  send_packet_signal     = PTHREAD_COND_INITIALIZER;
-pthread_cond_t  build_packet_signal    = PTHREAD_COND_INITIALIZER;
+ */
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t send_packet_signal = PTHREAD_COND_INITIALIZER;
+pthread_cond_t build_packet_signal = PTHREAD_COND_INITIALIZER;
 
 static pkt_t client_packet;
 static pkt_t server_packet;
@@ -18,7 +18,8 @@ static pkt_t server_packet;
 static int build_packet(char *cast_type, char *pkt_type, char *data);
 static int send_packet(int server_socket);
 static int recv_packet(int server_socket);
-
+static int send_msg(int server_socket, char *msg);
+static int send_file(int server_socket, char *file_name);
 
 /** @brief Accepts user input and builds the packet
  *
@@ -28,7 +29,7 @@ void *user_interface(void *args) {
 	char cast_type[10];
 	char text_link[100];
 	while (1) {
-		printf("Client:");
+		printf("%s:", (char *) args);
 		scanf("%s %s %s", cast_type, pkt_type, text_link);
 		if (cast_type == NULL || pkt_type == NULL || text_link == NULL) {
 			ERROR("Entered parameters incorrect\n");
@@ -64,7 +65,6 @@ void *tx_interface(void *args) {
 	}
 	return NULL;
 }
-
 
 /** @brief Receives Packets from the server
  *
@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	pthread_create(&tid[0], NULL, user_interface, NULL);
+	pthread_create(&tid[0], NULL, user_interface, argv[1]);
 	pthread_create(&tid[1], NULL, tx_interface, &server_socket);
 	pthread_create(&tid[2], NULL, rx_interface, &server_socket);
 
@@ -125,26 +125,33 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-
 // Static Function Definitions
 static int send_packet(int server_socket) {
 
 	pkt_t *first_packet = (pkt_t *) malloc(sizeof(pkt_t));
 
 	first_packet->cast_type = client_packet.cast_type;
-	first_packet->len 		= client_packet.len;
-	first_packet->pkt_type  = client_packet.pkt_type;
-	first_packet->data 		= NULL;
+	first_packet->len = client_packet.len;
+	first_packet->pkt_type = client_packet.pkt_type;
+	first_packet->data = NULL;
 
 	int send_status = send(server_socket, first_packet, sizeof(pkt_t), 0);
 	if (send_status == -1) {
 		ERROR("Sending first packet!");
 		return 1;
 	}
-	send_status = send(server_socket, (client_packet.data), client_packet.len, 0);
-	if (send_status == -1) {
-		ERROR("Sending main packet!");
-		return 1;
+	if (client_packet.pkt_type == MESSAGE) {
+		send_status = send_msg(server_socket, (client_packet.data));
+		if (send_status == -1) {
+			ERROR("Sending main packet!");
+			return 1;
+		}
+	} else if (client_packet.pkt_type == FILE) {
+		send_status = send_file(server_socket, (client_packet.data));
+		if (send_status == -1) {
+			ERROR("Sending main packet!");
+			return 1;
+		}
 	}
 
 	return 0;
@@ -153,7 +160,8 @@ static int send_packet(int server_socket) {
 static int build_packet(char *cast_type, char *pkt_type, char *data) {
 
 	if (cast_type == NULL || pkt_type == NULL || data == NULL) {
-		printf("Enter correct arguments!\n Usage <cast type> <packet type> <packet data> \n");
+		printf(
+				"Enter correct arguments!\n Usage <cast type> <packet type> <packet data> \n");
 		return 1;
 	}
 
@@ -171,14 +179,13 @@ static int build_packet(char *cast_type, char *pkt_type, char *data) {
 		client_packet.data = data;
 	} else {
 		client_packet.pkt_type = FILE;
+		client_packet.data = data;
 	}
 
 	return 0;
 }
 
-
 static int recv_packet(int server_socket) {
-
 
 	int recv_status = recv(server_socket, &server_packet, sizeof(pkt_t), 0);
 	if (recv_status == -1) {
@@ -186,12 +193,20 @@ static int recv_packet(int server_socket) {
 		return 1;
 	}
 
-	if(server_packet.pkt_type == MESSAGE){
+	if (server_packet.pkt_type == MESSAGE) {
 		printf("\n%s: %s\n", server_packet.peer_name, server_packet.data);
 	} else {
 		// FILE
 		// TODO
 		// ..
 	}
+	return 0;
+}
+
+static inline int send_msg(int server_socket, char *msg) {
+	return send(server_socket, msg, strlen(msg), 0);
+}
+static inline int send_file(int server_socket, char *file_name) {
+
 	return 0;
 }

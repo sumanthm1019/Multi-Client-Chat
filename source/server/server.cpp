@@ -6,7 +6,7 @@
 
 static clientSocketMap_t *map;
 
-static int recv_packet(int client_socket, pkt_t *packet);
+static int recv_packet	(int client_socket, pkt_t *packet);
 
 static int recv_packet(int client_socket, pkt_t *packet) {
 
