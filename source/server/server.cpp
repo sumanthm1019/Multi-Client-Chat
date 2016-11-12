@@ -21,8 +21,9 @@ static int recv_packet(int client_socket, pkt_t *packet) {
 	}
 	if (packet == NULL)
 		return 1;
-	int len = packet->len + 1;
-	char *msg = (char *) malloc(len);
+
+	int len = packet->len;
+	char *msg    = (char *) malloc(len);
 	packet->data = (char *) malloc(len);
 
 	recv_status = recv(client_socket, msg, len, 0);
