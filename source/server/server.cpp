@@ -1,11 +1,10 @@
 #include "utilities.h"
 #include "server.h"
 
-#define MAX_CLIENTS	(10)
+#define MAX_CLIENTS	 (10)
 
 
 static map *root_map;
-
 
 static int recv_packet(int client_socket, pkt_t *packet);
 
@@ -53,22 +52,28 @@ static int lookup_client(map* root, char* name){
 
 }
 
-static int recv_packet(int client_socket, pkt_t *packet) {
 
+static int recv_packet(int client_socket, pkt_t *packet) {
 
 	int recv_status = recv(client_socket, packet, sizeof(pkt_t), 0);
 	if (recv_status == -1) {
-		ERROR("Receiving first packet!\n");
+		ERROR("Receiving first packet!");
 		return 1;
 	}
+	if (recv_status == 0){
+		ERROR("Client Disconnected");
+		return 1;
+	}
+	if (packet == NULL)
+		return 1;
 
-	int len = packet->len + 1;
-	char *msg = (char *) malloc(len);
+	int len = packet->len;
+	char *msg    = (char *) malloc(len);
 	packet->data = (char *) malloc(len);
 
 	recv_status = recv(client_socket, msg, len, 0);
 	if (recv_status == -1) {
-		ERROR("Receiving main packet!\n");
+		ERROR("Receiving main packet!");
 		return 1;
 	}
 
@@ -88,14 +93,13 @@ int main(int argc, char *argv[]) {
 	printf("Server\n");
 
 
-	char CLIENT_NAME[20];//Hold Client Name for mapping
-	memset(&CLIENT_NAME,0 ,sizeof(CLIENT_NAME));//Initializing 0 to avoid junk data
+	char client_name[MAX_NAME_LEN] = {0};	//Hold Client Name for mapping
 
 	int server_socket, client_socket;
 
 	server_socket = socket(PF_INET, SOCK_STREAM, 0);
 	if (server_socket==-1){
-		ERROR("Error while creating server_socket\n");
+		ERROR("Creating server_socket\n");
 		return 1;
     }
 
@@ -109,28 +113,28 @@ int main(int argc, char *argv[]) {
 
 	// bind the socket with the struct
 
-	if (bind(server_socket, (struct sockaddr*) &server_address,
-			sizeof(server_address))==-1){
-			ERROR("Error while binding server_socket\n");
+	if (bind(server_socket, (struct sockaddr *) &server_address,
+			sizeof(server_address)) == -1){
+			ERROR("Binding server_socket\n");
 			return 1;
 	}
 
 	// listening for connections
-	if (listen(server_socket, MAX_CLIENTS)==-1){
-		ERROR("Error while listening to server_socket");
+	if (listen(server_socket, MAX_CLIENTS) == -1){
+		ERROR("Listening to server_socket");
 		return 1;
 	}
 
-	root_map=NULL;
+	root_map = NULL;
 
 	while(1){
 		//Initialization step
 		//Accept new client
 		//Receive Client name and map it to the client-fd
 		client_socket = accept(server_socket, NULL, NULL);
-		recv(client_socket, CLIENT_NAME, sizeof(CLIENT_NAME), 0);
-		insert_client(&root_map,client_socket,CLIENT_NAME);
-
+		recv(client_socket, client_name, sizeof(client_name), 0);
+		insert_client(&root_map,client_socket,client_name);
+		// TODO: Create thread 
 	}
 
 	return 0;
