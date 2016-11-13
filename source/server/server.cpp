@@ -4,10 +4,20 @@
 #define MAX_CLIENTS	(10)
 
 
+
+pthread_mutex_t buffmutex 		       = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t  packet_available       = PTHREAD_COND_INITIALIZER;
+pthread_cond_t  packet_slot_available  = PTHREAD_COND_INITIALIZER;
+
 static map *root_map;
 
 
-static int recv_packet(int client_socket, pkt_t *packet);
+static pkt_t packet_buffer[MAX_CLIENTS];//Packet which stores packet data
+static int items_in_buffer ;
+static int in;
+static int out;
+
+static int recv_packet(int client_socket);
 
 static void insert_client(map** root, int socket, char* name);
 
@@ -36,10 +46,6 @@ static void insert_client(map** root_map, int socket, char* name){
 
 //Given client name, lookup client_socket in the map  linklist and return
 static int lookup_client(map* root, char* name){
-	if (root ==NULL){
-		printf("No client is connected server");
-		return -1;
-	}
 
 	while(root!=NULL){
 		if (strcmp(root->name,name)==0){
@@ -53,45 +59,157 @@ static int lookup_client(map* root, char* name){
 
 }
 
-static int recv_packet(int client_socket, pkt_t *packet) {
+static int recv_packet(int client_socket) {
 
-
-	int recv_status = recv(client_socket, packet, sizeof(pkt_t), 0);
-	if (recv_status == -1) {
-		ERROR("Receiving first packet!\n");
-		return 1;
+	pthread_mutex_lock (&buffmutex);
+			while (items_in_buffer == MAX_CLIENTS) {
+				pthread_cond_wait(&packet_slot_available, &buffmutex);
 	}
 
-	int len = packet->len + 1;
-	char *msg = (char *) malloc(len);
-	packet->data = (char *) malloc(len);
+		if (recv(client_socket, &packet_buffer[in], sizeof(pkt_t), 0) == -1) {
+			ERROR("Receiving first packet!\n");
+			return 1;
+		}
+		pkt_t packet =packet_buffer[out];
+		if (packet.pkt_type==MESSAGE){
+			if (recv(client_socket, &packet_buffer[in], sizeof(pkt_t), 0) == -1) {
+						ERROR("Receiving first message/file!\n");
+						return 1;
+					}
+		}else if(packet.pkt_type==FILE)  {
+			//Receive file
+		}
 
-	recv_status = recv(client_socket, msg, len, 0);
-	if (recv_status == -1) {
-		ERROR("Receiving main packet!\n");
-		return 1;
+	in=(in+1)%MAX_CLIENTS;
+	items_in_buffer++;
+	pthread_cond_signal(&packet_available);
+	pthread_mutex_unlock(&buffmutex);
+
+	return 0;
+}
+static int send_packet(map* root) {
+	pthread_mutex_lock(&buffmutex);
+	while (items_in_buffer == 0) {
+		pthread_cond_wait(&packet_available, &buffmutex);
 	}
 
-	memcpy(packet->data, msg, len);
-	free(msg);
-	printf("message is %s\n", packet->data);
+	pkt_t packet = packet_buffer[out];
+	if (root == NULL) {
+		ERROR("No client registered");
+		return 0;
+	}
+	int clientid;
+	if (packet.pkt_type == MESSAGE) {
+
+		if (packet.cast_type == BROADCAST) {
+			while (root != NULL) {
+
+				clientid = (*root).socket_id;
+				//send Message
+				root = (*root).next;
+			}
+
+		} else if (packet.cast_type == BLOCKCAST) {
+			while (root != NULL) {
+
+				map client = *root;
+				if (strcmp(client.name, packet.client) == 0) {
+					continue;
+				}
+				clientid = (*root).socket_id;
+				//send Message
+				root = (*root).next;
+			}
+
+		} else if (packet.cast_type == UNICAST) {
+
+			clientid = lookup_client(root, packet.client);
+			//send message
+
+		}
+	} else if (packet.pkt_type == FILE) {
+
+		if (packet.cast_type == BROADCAST) {
+			while (root != NULL) {
+				//send Message
+				clientid = (*root).socket_id;
+
+				root = (*root).next;
+			}
+
+		} else if (packet.cast_type == BLOCKCAST) {
+			while (root != NULL) {
+				//send Message
+				map client = *root;
+				if (strcmp(client.name, packet.client) == 0) {
+					continue;
+				}
+				clientid = (*root).socket_id;
+				root = (*root).next;
+			}
+
+		} else if (packet.cast_type == UNICAST) {
+
+			clientid = lookup_client(root, packet.client);
+			//send message
+
+		}
+	}
+
+	out = (out + MAX_CLIENTS - 1) % MAX_CLIENTS;
+	items_in_buffer++;
+	pthread_cond_signal(&packet_available);
+	pthread_mutex_unlock(&buffmutex);
 
 	return 0;
 }
 
+void *rx_interface(void *args) {
+ 	int client_socket = *(int *) args;
+
+ 	while (1) {
+
+			int recv_status = recv_packet(client_socket);
+			if (recv_status != 0) {
+				ERROR("Receiving message from server!");
+			}
 
 
+ 	}
+ 	return NULL;
+}
 
+
+void *tx_interface(void *args) {
+	map *root = (map *) args;
+  	while (1) {
+
+
+  		int send_status = send_packet(root);
+  		if (send_status != 0) {
+  			ERROR("Sending message to server!");
+  		}
+
+  	}
+
+  	return NULL;
+  }
 
 int main(int argc, char *argv[]) {
 
 	printf("Server\n");
 
+	pthread_t tid[MAX_CLIENTS+1];//Initializing server threads
+	in=0;
+	out=0;
+	items_in_buffer=0;
 
+	static int tnum=0;		  //Thread ids assigned for newly created thread after incrementing
 	char CLIENT_NAME[20];//Hold Client Name for mapping
 	memset(&CLIENT_NAME,0 ,sizeof(CLIENT_NAME));//Initializing 0 to avoid junk data
 
-	int server_socket, client_socket;
+	int server_socket;
+	int client_sockets[MAX_CLIENTS];
 
 	server_socket = socket(PF_INET, SOCK_STREAM, 0);
 	if (server_socket==-1){
@@ -123,13 +241,20 @@ int main(int argc, char *argv[]) {
 
 	root_map=NULL;
 
+	//Thread to send the message/file across client/s as requested.
+	pthread_create(&tid[10], NULL, tx_interface, &root_map);
+
+	//Parent Thread
 	while(1){
 		//Initialization step
 		//Accept new client
 		//Receive Client name and map it to the client-fd
-		client_socket = accept(server_socket, NULL, NULL);
-		recv(client_socket, CLIENT_NAME, sizeof(CLIENT_NAME), 0);
-		insert_client(&root_map,client_socket,CLIENT_NAME);
+		tnum=(tnum+1)%MAX_CLIENTS; //Thread id
+		client_sockets[tnum] = accept(server_socket, NULL, NULL);//(**will this create new client_socket fd everytime?**)
+		recv(client_sockets[tnum], CLIENT_NAME, sizeof(CLIENT_NAME), 0);
+		insert_client(&root_map,client_sockets[tnum],CLIENT_NAME);
+		//Create a new thread for the client
+		pthread_create(&tid[tnum], NULL, rx_interface, &client_sockets[tnum]);
 
 	}
 

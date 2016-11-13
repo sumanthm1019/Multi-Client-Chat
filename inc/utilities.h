@@ -38,4 +38,5 @@ typedef struct
 	int   cast_type;
 	int   len;
 	char *data;
+	char *client;
 } pkt_t;
