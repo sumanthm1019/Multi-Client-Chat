@@ -2,12 +2,13 @@
 #define __SERVER__
 #include <string>
 
-
-typedef struct
+typedef struct clientSocketMap_t map;
+struct clientSocketMap_t
 {
 	char name[20];
 	int  socket_id;
-} clientSocketMap_t;
+	map* next;
+};
 
 
 #endif
