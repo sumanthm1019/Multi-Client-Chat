@@ -1,8 +1,10 @@
+#include <cstdio>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <netinet/in.h>
 #include <string>
@@ -31,10 +33,13 @@
 #define SERVER_PORT 	(9000)
 #define MAX_NAME_LEN 	(15)
 
+
+#define EOF_SEQ		"@@@EOF@@@"
 typedef struct {
 	int pkt_type;
 	int cast_type;
 	int len;
 	char *data;
+	char file_name[MAX_NAME_LEN];
 	char peer_name[MAX_NAME_LEN];
 } pkt_t;

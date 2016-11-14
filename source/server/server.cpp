@@ -1,5 +1,6 @@
 #include "utilities.h"
 #include "server.h"
+#include "client.h"
 
 #define MAX_CLIENTS	 (10)
 
