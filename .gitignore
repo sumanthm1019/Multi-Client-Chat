@@ -32,7 +32,7 @@
 # Output folder
 bin/*
 
-*project
+
 *settings
 *swp
 *save

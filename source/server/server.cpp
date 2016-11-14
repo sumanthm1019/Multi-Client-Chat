@@ -1,12 +1,13 @@
 #include "utilities.h"
 #include "server.h"
+#include "client.h"
 
 #define MAX_CLIENTS	 (10)
 
 
 static map *root_map;
 
-static int recv_packet(int client_socket, pkt_t *packet);
+static int recv_packet	(int client_socket, pkt_t *packet);
 
 static void insert_client(map** root, int socket, char* name);
 
